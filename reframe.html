@@ -208,6 +208,15 @@
     max-height: none;
   }
 
+  .original-thought {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
   .reframe-explanation {
     margin-top: 12px;
     padding-top: 12px;
@@ -788,11 +797,19 @@ function handleSpeechResult(event) {
     } else {
       // We're capturing user input after wake word
       if (transcript.length > 0) {
-        if (isFinal) {
-          state.userInput += (state.userInput ? ' ' : '') + transcript;
+        // Strip wake phrase and any text before it (speech recognition may include prior context)
+        const wakeIndex = lower.indexOf(wakePhrase);
+        const relevantTranscript = wakeIndex !== -1
+          ? transcript.substring(wakeIndex + wakePhrase.length).trim()
+          : transcript;
+
+        if (relevantTranscript.length > 0) {
+          if (isFinal) {
+            state.userInput += (state.userInput ? ' ' : '') + relevantTranscript;
+          }
+          showUserInput(state.userInput + (isFinal ? '' : ' ' + relevantTranscript));
+          resetSilenceTimer();
         }
-        showUserInput(state.userInput + (isFinal ? '' : ' ' + transcript));
-        resetSilenceTimer();
       }
     }
   }
@@ -1029,6 +1046,7 @@ function showReframedResponse(original, response) {
       <span style="font-size:10px;opacity:0.6">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
     </div>
     <div class="panel-body">
+      <div class="original-thought">🗣 "${escapeHtml(original)}"</div>
       ${escapeHtml(sayText)}
       ${whyText ? `<div class="reframe-explanation">💡 ${escapeHtml(whyText)}</div>` : ''}
     </div>
