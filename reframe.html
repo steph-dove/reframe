@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Reframe</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0b;
+    --surface: #141416;
+    --surface-2: #1c1c20;
+    --border: #2a2a30;
+    --text: #e8e6e3;
+    --text-dim: #7a7872;
+    --accent: #c4f042;
+    --accent-dim: #c4f04220;
+    --accent-glow: #c4f04240;
+    --warning: #f0a742;
+    --error: #f04242;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* App Shell */
+  .app {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* Header */
+  .header {
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  .logo {
+    font-family: 'Instrument Serif', serif;
+    font-size: 24px;
+    letter-spacing: -0.5px;
+    color: var(--accent);
+  }
+
+  .settings-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .settings-btn:hover {
+    border-color: var(--text-dim);
+    color: var(--text);
+  }
+
+  /* Status Bar */
+  .status-bar {
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+
+  .status-dot.listening {
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  .status-dot.processing {
+    background: var(--warning);
+    animation: pulse-dot 0.6s ease-in-out infinite;
+  }
+
+  .status-dot.error {
+    background: var(--error);
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Main Content */
+  .main {
+    flex: 1;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+    padding-bottom: 100px;
+  }
+
+  /* Transcript Panel */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 12px 16px;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .panel-body {
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-dim);
+    max-height: 200px;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+  }
+
+  .panel-body.empty {
+    font-style: italic;
+    color: var(--text-dim);
+    opacity: 0.5;
+  }
+
+  /* User Input Panel */
+  .user-input-panel {
+    border-color: var(--accent-dim);
+  }
+
+  .user-input-panel .panel-header {
+    color: var(--accent);
+    border-bottom-color: var(--accent-dim);
+  }
+
+  .user-input-panel .panel-body {
+    color: var(--text);
+  }
+
+  /* Reframed Response */
+  .reframe-panel {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--accent-dim), inset 0 0 20px var(--accent-dim);
+    animation: reframe-in 0.4s ease-out;
+  }
+
+  @keyframes reframe-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .reframe-panel .panel-header {
+    color: var(--accent);
+    border-bottom-color: var(--accent-dim);
+    background: var(--accent-dim);
+  }
+
+  .reframe-panel .panel-body {
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.8;
+    max-height: none;
+  }
+
+  .reframe-explanation {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  /* Waveform Visualizer */
+  .waveform-container {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 0 16px;
+  }
+
+  .waveform-bar {
+    width: 3px;
+    background: var(--text-dim);
+    border-radius: 2px;
+    transition: height 0.1s ease;
+    min-height: 4px;
+  }
+
+  .waveform-bar.active {
+    background: var(--accent);
+  }
+
+  /* Wake Word Indicator */
+  .wake-indicator {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--accent);
+    color: var(--bg);
+    font-family: 'Instrument Serif', serif;
+    font-size: 28px;
+    padding: 20px 40px;
+    border-radius: 16px;
+    z-index: 100;
+    animation: wake-flash 1.5s ease-out forwards;
+    pointer-events: none;
+    box-shadow: 0 0 60px var(--accent-glow);
+  }
+
+  @keyframes wake-flash {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+    15% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    70% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.05); }
+  }
+
+  /* Loading dots */
+  .loading-dots {
+    display: inline-flex;
+    gap: 4px;
+    padding: 8px 0;
+  }
+
+  .loading-dots span {
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: dot-bounce 1.2s ease-in-out infinite;
+  }
+
+  .loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes dot-bounce {
+    0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+    40% { opacity: 1; transform: scale(1.2); }
+  }
+
+  /* Settings Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 50;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    animation: fade-in 0.2s ease;
+  }
+
+  .modal-overlay.active {
+    display: flex;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px 20px 0 0;
+    width: 100%;
+    max-width: 480px;
+    max-height: 85dvh;
+    overflow-y: auto;
+    animation: slide-up 0.3s ease;
+    padding: 24px 20px 40px;
+  }
+
+  @keyframes slide-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .modal-handle {
+    width: 40px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 20px;
+  }
+
+  .modal h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 22px;
+    margin-bottom: 24px;
+    font-weight: 400;
+  }
+
+  .field {
+    margin-bottom: 20px;
+  }
+
+  .field label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .field input, .field select, .field textarea {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: var(--accent);
+  }
+
+  .field select {
+    appearance: none;
+    cursor: pointer;
+  }
+
+  .field textarea {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.6;
+  }
+
+  .field .hint {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  .save-btn {
+    width: 100%;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: opacity 0.2s;
+    margin-top: 8px;
+  }
+
+  .save-btn:hover { opacity: 0.9; }
+
+  /* Bottom Bar */
+  .bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    background: linear-gradient(transparent, var(--bg) 30%);
+    padding: 20px 20px 28px;
+    display: flex;
+    justify-content: center;
+    z-index: 10;
+  }
+
+  .listen-btn {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+    position: relative;
+  }
+
+  .listen-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 30px var(--accent-dim);
+  }
+
+  .listen-btn.active::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 1px solid var(--accent-dim);
+    animation: ripple 2s ease-out infinite;
+  }
+
+  @keyframes ripple {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.4); opacity: 0; }
+  }
+
+  .listen-btn svg { width: 28px; height: 28px; }
+
+  /* History */
+  .history-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    opacity: 0.5;
+  }
+
+  .history-divider::before,
+  .history-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 12px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    z-index: 200;
+    animation: toast-in 0.3s ease, toast-out 0.3s ease 2.5s forwards;
+    pointer-events: none;
+  }
+
+  @keyframes toast-in {
+    from { opacity: 0; transform: translate(-50%, -10px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }
+
+  @keyframes toast-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">Reframe</div>
+    <button class="settings-btn" onclick="toggleSettings()" aria-label="Settings">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Ready — tap mic to begin</span>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main" id="mainContent">
+    <!-- Meeting Context -->
+    <div class="panel" id="contextPanel">
+      <div class="panel-header">
+        <span>Meeting Context</span>
+        <span id="contextWordCount"></span>
+      </div>
+      <div class="panel-body empty" id="contextBody">
+        Listening for meeting audio...
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Bar -->
+  <div class="bottom-bar">
+    <button class="listen-btn" id="listenBtn" onclick="toggleListening()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>Settings</h2>
+
+    <div class="field">
+      <label>LLM Provider</label>
+      <select id="providerSelect" onchange="updateProviderFields()">
+        <option value="anthropic">Anthropic (Claude)</option>
+        <option value="openai">OpenAI (GPT)</option>
+        <option value="ollama">Ollama (Local)</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-..." />
+      <div class="hint" id="apiKeyHint">Your key stays on-device in local storage</div>
+    </div>
+
+    <div class="field" id="modelField">
+      <label>Model</label>
+      <input type="text" id="modelInput" placeholder="claude-sonnet-4-20250514" />
+    </div>
+
+    <div class="field" id="ollamaUrlField" style="display:none">
+      <label>Ollama URL</label>
+      <input type="text" id="ollamaUrl" placeholder="http://localhost:11434" />
+    </div>
+
+    <div class="field">
+      <label>Wake Phrase</label>
+      <input type="text" id="wakePhrase" placeholder="here's the thing" />
+      <div class="hint">Say this before your real thoughts. Case insensitive.</div>
+    </div>
+
+    <div class="field">
+      <label>Silence Timeout (seconds)</label>
+      <input type="number" id="silenceTimeout" value="3" min="1" max="10" />
+      <div class="hint">How long to wait after you stop speaking to process your input</div>
+    </div>
+
+    <div class="field">
+      <label>Reframing Style</label>
+      <select id="styleSelect">
+        <option value="diplomatic">Diplomatic — Professional & constructive</option>
+        <option value="manager">Manager — Frame in terms of team impact</option>
+        <option value="client">Client-facing — Extra polished & warm</option>
+        <option value="direct">Direct — Honest but kind</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Custom Instructions (optional)</label>
+      <textarea id="customInstructions" placeholder="e.g. I'm a senior engineer talking to my team lead. Keep it casual but professional."></textarea>
+    </div>
+
+    <button class="save-btn" onclick="saveSettings()">Save Settings</button>
+  </div>
+</div>
+
+<script>
+// ============================================
+// State
+// ============================================
+let state = {
+  listening: false,
+  wakeDetected: false,
+  userSpeaking: false,
+  processing: false,
+  meetingContext: [],
+  userInput: '',
+  silenceTimer: null,
+  recognition: null,
+  history: [],
+};
+
+// ============================================
+// Settings
+// ============================================
+function getSettings() {
+  const defaults = {
+    provider: 'anthropic',
+    apiKey: '',
+    model: 'claude-sonnet-4-20250514',
+    ollamaUrl: 'http://localhost:11434',
+    wakePhrase: "here's the thing",
+    silenceTimeout: 3,
+    style: 'diplomatic',
+    customInstructions: '',
+  };
+  try {
+    const saved = JSON.parse(localStorage.getItem('reframe_settings') || '{}');
+    return { ...defaults, ...saved };
+  } catch {
+    return defaults;
+  }
+}
+
+function saveSettings() {
+  const settings = {
+    provider: document.getElementById('providerSelect').value,
+    apiKey: document.getElementById('apiKeyInput').value,
+    model: document.getElementById('modelInput').value,
+    ollamaUrl: document.getElementById('ollamaUrl').value,
+    wakePhrase: document.getElementById('wakePhrase').value.toLowerCase().trim(),
+    silenceTimeout: parseInt(document.getElementById('silenceTimeout').value) || 3,
+    style: document.getElementById('styleSelect').value,
+    customInstructions: document.getElementById('customInstructions').value,
+  };
+  localStorage.setItem('reframe_settings', JSON.stringify(settings));
+  toggleSettings();
+  showToast('Settings saved');
+}
+
+function loadSettingsUI() {
+  const s = getSettings();
+  document.getElementById('providerSelect').value = s.provider;
+  document.getElementById('apiKeyInput').value = s.apiKey;
+  document.getElementById('modelInput').value = s.model;
+  document.getElementById('ollamaUrl').value = s.ollamaUrl;
+  document.getElementById('wakePhrase').value = s.wakePhrase;
+  document.getElementById('silenceTimeout').value = s.silenceTimeout;
+  document.getElementById('styleSelect').value = s.style;
+  document.getElementById('customInstructions').value = s.customInstructions;
+  updateProviderFields();
+}
+
+function updateProviderFields() {
+  const provider = document.getElementById('providerSelect').value;
+  const ollamaField = document.getElementById('ollamaUrlField');
+  const apiKeyInput = document.getElementById('apiKeyInput');
+  const apiKeyHint = document.getElementById('apiKeyHint');
+  const modelInput = document.getElementById('modelInput');
+
+  ollamaField.style.display = provider === 'ollama' ? 'block' : 'none';
+
+  if (provider === 'anthropic') {
+    apiKeyInput.placeholder = 'sk-ant-...';
+    modelInput.placeholder = 'claude-sonnet-4-20250514';
+    apiKeyHint.textContent = 'Your key stays on-device';
+  } else if (provider === 'openai') {
+    apiKeyInput.placeholder = 'sk-...';
+    modelInput.placeholder = 'gpt-4o';
+    apiKeyHint.textContent = 'Your key stays on-device';
+  } else {
+    apiKeyInput.placeholder = 'Not needed for local models';
+    modelInput.placeholder = 'llama3.2';
+    apiKeyHint.textContent = 'Ollama runs locally — no API key needed';
+  }
+}
+
+function toggleSettings() {
+  const modal = document.getElementById('settingsModal');
+  const isActive = modal.classList.contains('active');
+  if (isActive) {
+    modal.classList.remove('active');
+  } else {
+    loadSettingsUI();
+    modal.classList.add('active');
+  }
+}
+
+// Close modal on overlay click
+document.getElementById('settingsModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) toggleSettings();
+});
+
+// ============================================
+// Speech Recognition
+// ============================================
+function initRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    showToast('Speech recognition not supported in this browser');
+    return null;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+  recognition.maxAlternatives = 1;
+
+  recognition.onresult = handleSpeechResult;
+  recognition.onerror = handleSpeechError;
+  recognition.onend = () => {
+    // Auto-restart if still listening
+    if (state.listening) {
+      try { recognition.start(); } catch(e) {}
+    }
+  };
+
+  return recognition;
+}
+
+function handleSpeechResult(event) {
+  const settings = getSettings();
+  const wakePhrase = settings.wakePhrase.toLowerCase();
+
+  for (let i = event.resultIndex; i < event.results.length; i++) {
+    const transcript = event.results[i][0].transcript.trim();
+    const isFinal = event.results[i].isFinal;
+    const lower = transcript.toLowerCase();
+
+    if (!state.wakeDetected) {
+      // Check for wake phrase in the transcript
+      const wakeIndex = lower.indexOf(wakePhrase);
+      if (wakeIndex !== -1) {
+        // Wake word detected!
+        state.wakeDetected = true;
+        state.userInput = '';
+        showWakeIndicator();
+        setStatus('listening', 'Listening to you...');
+
+        // Grab anything after the wake phrase as initial input
+        const afterWake = transcript.substring(wakeIndex + wakePhrase.length).trim();
+        if (afterWake) {
+          state.userInput = afterWake;
+          showUserInput(state.userInput);
+        }
+        resetSilenceTimer();
+      } else if (isFinal && transcript.length > 0) {
+        // Regular meeting audio — add to context
+        addMeetingContext(transcript);
+      }
+    } else {
+      // We're capturing user input after wake word
+      if (transcript.length > 0) {
+        if (isFinal) {
+          state.userInput += (state.userInput ? ' ' : '') + transcript;
+        }
+        showUserInput(state.userInput + (isFinal ? '' : ' ' + transcript));
+        resetSilenceTimer();
+      }
+    }
+  }
+}
+
+function resetSilenceTimer() {
+  const settings = getSettings();
+  clearTimeout(state.silenceTimer);
+  state.silenceTimer = setTimeout(() => {
+    if (state.wakeDetected && state.userInput.trim()) {
+      processUserInput();
+    } else if (state.wakeDetected) {
+      // Wake detected but no input — reset
+      state.wakeDetected = false;
+      setStatus('listening', 'Listening to meeting...');
+    }
+  }, settings.silenceTimeout * 1000);
+}
+
+function handleSpeechError(event) {
+  console.error('Speech error:', event.error);
+  if (event.error === 'not-allowed') {
+    setStatus('error', 'Microphone access denied');
+    state.listening = false;
+    updateListenButton();
+  }
+}
+
+// ============================================
+// Meeting Context
+// ============================================
+function addMeetingContext(text) {
+  state.meetingContext.push({
+    text,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  });
+
+  // Keep last ~50 utterances for context window
+  if (state.meetingContext.length > 50) {
+    state.meetingContext = state.meetingContext.slice(-50);
+  }
+
+  const body = document.getElementById('contextBody');
+  body.classList.remove('empty');
+  body.innerHTML = state.meetingContext
+    .map(c => `<span style="color:var(--text-dim);font-size:11px">${c.time}</span> ${c.text}`)
+    .join('<br>');
+  body.scrollTop = body.scrollHeight;
+
+  const wordCount = state.meetingContext.reduce((n, c) => n + c.text.split(/\s+/).length, 0);
+  document.getElementById('contextWordCount').textContent = `${wordCount} words`;
+}
+
+// ============================================
+// User Input Display
+// ============================================
+function showUserInput(text) {
+  let panel = document.getElementById('userInputPanel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'userInputPanel';
+    panel.className = 'panel user-input-panel';
+    panel.innerHTML = `
+      <div class="panel-header"><span>Your Real Thoughts</span></div>
+      <div class="panel-body" id="userInputBody"></div>
+    `;
+    document.getElementById('mainContent').appendChild(panel);
+  }
+  document.getElementById('userInputBody').textContent = text;
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ============================================
+// Process & Reframe
+// ============================================
+async function processUserInput() {
+  state.wakeDetected = false;
+  state.processing = true;
+  setStatus('processing', 'Reframing your thoughts...');
+
+  const userThought = state.userInput.trim();
+  const meetingContext = state.meetingContext.slice(-20).map(c => c.text).join(' ');
+  const settings = getSettings();
+
+  // Show loading
+  showLoadingPanel();
+
+  try {
+    const reframed = await callLLM(userThought, meetingContext, settings);
+    hideLoadingPanel();
+    showReframedResponse(userThought, reframed);
+
+    state.history.push({
+      original: userThought,
+      reframed: reframed,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+  } catch (err) {
+    hideLoadingPanel();
+    showToast('Error: ' + err.message);
+  }
+
+  state.userInput = '';
+  state.processing = false;
+  removeUserInputPanel();
+  setStatus('listening', 'Listening to meeting...');
+}
+
+async function callLLM(userThought, meetingContext, settings) {
+  const styleGuides = {
+    diplomatic: 'Reword this to be professional, constructive, and diplomatic while preserving the core point.',
+    manager: 'Reword this to frame the feedback in terms of team impact, project health, and constructive leadership.',
+    client: 'Reword this to be warm, polished, and client-appropriate while still making the point.',
+    direct: 'Reword this to be honest and direct but kind — no sugarcoating, but no hostility either.',
+  };
+
+  const systemPrompt = `You are Reframe, a communication coach. The user is in a meeting and has privately told you their real, unfiltered thoughts. Your job is to help them express this in a way that will be well-received.
+
+${styleGuides[settings.style] || styleGuides.diplomatic}
+
+${settings.customInstructions ? `Additional context from the user: ${settings.customInstructions}` : ''}
+
+Respond with ONLY two sections:
+SAY: [The reworded version they should actually say — ready to speak verbatim]
+WHY: [One brief sentence explaining what you changed and why]
+
+Keep the SAY section concise and natural-sounding. It should feel like something a real person would say, not a corporate email.`;
+
+  const userMessage = `Meeting context (what others have been saying):
+${meetingContext || '(no context captured yet)'}
+
+My real thoughts:
+"${userThought}"`;
+
+  if (settings.provider === 'anthropic') {
+    return await callAnthropic(systemPrompt, userMessage, settings);
+  } else if (settings.provider === 'openai') {
+    return await callOpenAI(systemPrompt, userMessage, settings);
+  } else if (settings.provider === 'ollama') {
+    return await callOllama(systemPrompt, userMessage, settings);
+  }
+}
+
+async function callAnthropic(systemPrompt, userMessage, settings) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': settings.apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: settings.model || 'claude-sonnet-4-20250514',
+      max_tokens: 512,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.content[0].text;
+}
+
+async function callOpenAI(systemPrompt, userMessage, settings) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${settings.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: settings.model || 'gpt-4o',
+      max_tokens: 512,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
+
+async function callOllama(systemPrompt, userMessage, settings) {
+  const res = await fetch(`${settings.ollamaUrl}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: settings.model || 'llama3.2',
+      stream: false,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage },
+      ],
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Ollama error ${res.status}`);
+  const data = await res.json();
+  return data.message.content;
+}
+
+// ============================================
+// UI Helpers
+// ============================================
+function showReframedResponse(original, response) {
+  // Parse SAY and WHY sections
+  let sayText = response;
+  let whyText = '';
+
+  const sayMatch = response.match(/SAY:\s*([\s\S]*?)(?=WHY:|$)/i);
+  const whyMatch = response.match(/WHY:\s*([\s\S]*?)$/i);
+
+  if (sayMatch) sayText = sayMatch[1].trim();
+  if (whyMatch) whyText = whyMatch[1].trim();
+
+  const panel = document.createElement('div');
+  panel.className = 'panel reframe-panel';
+  panel.innerHTML = `
+    <div class="panel-header">
+      <span>✦ Say This Instead</span>
+      <span style="font-size:10px;opacity:0.6">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+    </div>
+    <div class="panel-body">
+      ${escapeHtml(sayText)}
+      ${whyText ? `<div class="reframe-explanation">💡 ${escapeHtml(whyText)}</div>` : ''}
+    </div>
+  `;
+
+  const main = document.getElementById('mainContent');
+  main.appendChild(panel);
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function showLoadingPanel() {
+  let panel = document.getElementById('loadingPanel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'loadingPanel';
+    panel.className = 'panel';
+    panel.innerHTML = `
+      <div class="panel-header"><span>Reframing</span></div>
+      <div class="panel-body">
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+      </div>
+    `;
+    document.getElementById('mainContent').appendChild(panel);
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function hideLoadingPanel() {
+  const panel = document.getElementById('loadingPanel');
+  if (panel) panel.remove();
+}
+
+function removeUserInputPanel() {
+  const panel = document.getElementById('userInputPanel');
+  if (panel) panel.remove();
+}
+
+function showWakeIndicator() {
+  const indicator = document.createElement('div');
+  indicator.className = 'wake-indicator';
+  indicator.textContent = '✦ Listening...';
+  document.body.appendChild(indicator);
+  setTimeout(() => indicator.remove(), 1500);
+
+  // Haptic feedback if available
+  if (navigator.vibrate) navigator.vibrate(100);
+}
+
+function setStatus(type, text) {
+  const dot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  dot.className = 'status-dot ' + type;
+  statusText.textContent = text;
+}
+
+function showToast(message) {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ============================================
+// Listen Toggle
+// ============================================
+function toggleListening() {
+  if (!state.recognition) {
+    state.recognition = initRecognition();
+    if (!state.recognition) return;
+  }
+
+  const settings = getSettings();
+  if (!settings.apiKey && settings.provider !== 'ollama') {
+    toggleSettings();
+    showToast('Add your API key to get started');
+    return;
+  }
+
+  if (state.listening) {
+    state.listening = false;
+    state.recognition.stop();
+    setStatus('', 'Paused');
+    updateListenButton();
+  } else {
+    state.listening = true;
+    state.recognition.start();
+    setStatus('listening', 'Listening to meeting...');
+    updateListenButton();
+  }
+}
+
+function updateListenButton() {
+  const btn = document.getElementById('listenBtn');
+  if (state.listening) {
+    btn.classList.add('active');
+  } else {
+    btn.classList.remove('active');
+  }
+}
+
+// ============================================
+// Init
+// ============================================
+loadSettingsUI();
+</script>
+
+</body>
+</html>
