@@ -57,11 +57,11 @@ Run AI models locally without an API key.
 
 ## Configuration Options
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Wake Phrase | `here's the thing` | Phrase that triggers reframing |
-| Silence Timeout | `3` seconds | How long to wait after speaking before processing |
-| Style | `diplomatic` | Tone for reframing |
+| Setting         | Default            | Description                                       |
+| --------------- | ------------------ | ------------------------------------------------- |
+| Wake Phrase     | `here's the thing` | Phrase that triggers reframing                    |
+| Silence Timeout | `3` seconds        | How long to wait after speaking before processing |
+| Style           | `diplomatic`       | Tone for reframing                                |
 
 ### Reframing Styles
 
@@ -99,16 +99,19 @@ Then open `https://localhost:8443/reframe.html`
 ## Troubleshooting
 
 **Microphone not working?**
+
 - Ensure you've granted microphone permission to the page
 - Try using HTTPS instead of HTTP
 - Check that no other app is using the microphone
 
 **API errors?**
+
 - Verify your API key is correct
 - Check that you have credits/quota with your provider
 - For Ollama, ensure the server is running (`ollama serve`)
 
 **Speech not recognized?**
+
 - Speak clearly and at a normal pace
 - Check your system microphone settings
 - Try a different browser (Chrome has the best Web Speech API support)
