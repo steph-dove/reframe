@@ -515,6 +515,81 @@
     to { opacity: 0; }
   }
 
+  /* Text Input Bar */
+  .text-input-bar {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    padding: 0 20px;
+    z-index: 10;
+    display: none;
+    animation: slide-up 0.2s ease;
+  }
+
+  .text-input-bar.active { display: flex; gap: 8px; }
+
+  .text-input-bar textarea {
+    flex: 1;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    outline: none;
+    resize: none;
+    max-height: 120px;
+    line-height: 1.5;
+    transition: border-color 0.2s;
+  }
+
+  .text-input-bar textarea:focus { border-color: var(--accent); }
+
+  .text-input-bar textarea::placeholder { color: var(--text-dim); }
+
+  .send-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent);
+    color: var(--bg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    align-self: flex-end;
+    transition: opacity 0.2s;
+  }
+
+  .send-btn:hover { opacity: 0.9; }
+
+  .keyboard-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .keyboard-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .bottom-bar { gap: 12px; }
+
   /* Scrollbar */
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -554,8 +629,23 @@
     </div>
   </div>
 
+  <!-- Text Input Bar -->
+  <div class="text-input-bar" id="textInputBar">
+    <textarea id="textInput" placeholder="Type your real thoughts..." rows="1" oninput="autoResizeTextarea(this)"></textarea>
+    <button class="send-btn" onclick="submitTextInput()" aria-label="Send">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+    </button>
+  </div>
+
   <!-- Bottom Bar -->
   <div class="bottom-bar">
+    <button class="keyboard-btn" id="keyboardBtn" onclick="toggleTextInput()" aria-label="Type instead">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="4" width="20" height="16" rx="2" ry="2"/><line x1="6" y1="8" x2="6" y2="8"/><line x1="10" y1="8" x2="10" y2="8"/><line x1="14" y1="8" x2="14" y2="8"/><line x1="18" y1="8" x2="18" y2="8"/><line x1="6" y1="12" x2="6" y2="12"/><line x1="10" y1="12" x2="10" y2="12"/><line x1="14" y1="12" x2="14" y2="12"/><line x1="18" y1="12" x2="18" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/>
+      </svg>
+    </button>
     <button class="listen-btn" id="listenBtn" onclick="toggleListening()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
@@ -1153,6 +1243,62 @@ function updateListenButton() {
     btn.classList.remove('active');
   }
 }
+
+// ============================================
+// Text Input
+// ============================================
+function toggleTextInput() {
+  const bar = document.getElementById('textInputBar');
+  const btn = document.getElementById('keyboardBtn');
+  const isActive = bar.classList.contains('active');
+
+  if (isActive) {
+    bar.classList.remove('active');
+    btn.classList.remove('active');
+  } else {
+    bar.classList.add('active');
+    btn.classList.add('active');
+    document.getElementById('textInput').focus();
+  }
+}
+
+function submitTextInput() {
+  const textarea = document.getElementById('textInput');
+  const text = textarea.value.trim();
+  if (!text) return;
+
+  const settings = getSettings();
+  if (!settings.apiKey && settings.provider !== 'ollama') {
+    toggleSettings();
+    showToast('Add your API key to get started');
+    return;
+  }
+
+  // Set the user input and process it through the same pipeline
+  state.userInput = text;
+  state.wakeDetected = false;
+  showUserInput(text);
+
+  // Clear and hide the text input
+  textarea.value = '';
+  textarea.style.height = 'auto';
+  toggleTextInput();
+
+  processUserInput();
+}
+
+function autoResizeTextarea(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// Enter to send, Shift+Enter for newline
+document.getElementById('textInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    submitTextInput();
+  }
+});
 
 // ============================================
 // Init

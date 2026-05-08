@@ -1,0 +1,12 @@
+.user-input-panel {
+  border-color: var(--accent-dim);
+}
+
+.user-input-panel .panel-header {
+  color: var(--accent);
+  border-bottom-color: var(--accent-dim);
+}
+
+.user-input-panel .panel-body {
+  color: var(--text);
+}

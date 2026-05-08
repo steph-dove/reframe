@@ -1,0 +1,42 @@
+.reframe-panel {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 20px var(--accent-dim),
+    inset 0 0 20px var(--accent-dim);
+  animation: reframe-in 0.4s ease-out;
+}
+
+.reframe-panel.no-animate {
+  animation: none;
+}
+
+.reframe-panel .panel-header {
+  color: var(--accent);
+  border-bottom-color: var(--accent-dim);
+  background: var(--accent-dim);
+}
+
+.reframe-panel .panel-body {
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.8;
+  max-height: none;
+}
+
+.original-thought {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.reframe-explanation {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}

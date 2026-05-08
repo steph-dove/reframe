@@ -1,2 +1,15 @@
 # Certificates
 *.pem
+
+# Dependencies
+node_modules/
+
+# Build
+dist/
+
+# Vite
+*.local
+
+# Sibling experiment directories
+reframe-reframe-again/
+reframe-reframe-again-again/
