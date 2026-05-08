@@ -17,6 +17,8 @@
     --accent-dim: #c4f04220;
     --accent-glow: #c4f04240;
     --warning: #f0a742;
+    --warning-dim: #f0a74220;
+    --warning-glow: #f0a74240;
     --error: #f04242;
   }
 
@@ -224,6 +226,65 @@
     font-size: 11px;
     color: var(--text-dim);
     line-height: 1.6;
+  }
+
+  /* Style Suggestion */
+  .suggest-panel {
+    border-color: var(--warning);
+    box-shadow: 0 0 16px var(--warning-dim), inset 0 0 16px var(--warning-dim);
+    animation: reframe-in 0.4s ease-out;
+  }
+
+  .suggest-panel .panel-header {
+    color: var(--warning);
+    border-bottom-color: var(--warning-dim);
+    background: var(--warning-dim);
+  }
+
+  .suggest-panel .panel-body {
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.7;
+    max-height: none;
+  }
+
+  .suggest-reason {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .suggest-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .suggest-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    transition: opacity 0.15s, background 0.15s;
+  }
+
+  .suggest-btn:hover { opacity: 0.85; }
+
+  .suggest-btn.apply {
+    background: var(--warning);
+    border-color: var(--warning);
+    color: var(--bg);
+  }
+
+  .suggest-btn.dismiss {
+    background: transparent;
+    color: var(--text-dim);
   }
 
   /* Waveform Visualizer */
@@ -625,11 +686,35 @@
       <textarea id="customInstructions" placeholder="e.g. I'm a senior engineer talking to my team lead. Keep it casual but professional."></textarea>
     </div>
 
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:0">
+        <input type="checkbox" id="suggestStyleToggle" style="width:auto;margin:0" />
+        <span>Suggest a better style after each reframe</span>
+      </label>
+      <div class="hint">Reframe will analyze the meeting context and suggest switching styles when the conversation shifts</div>
+    </div>
+
     <button class="save-btn" onclick="saveSettings()">Save Settings</button>
   </div>
 </div>
 
 <script>
+// ============================================
+// Style Guides
+// ============================================
+const STYLE_GUIDES = {
+  diplomatic: 'Reword this to be professional, constructive, and diplomatic while preserving the core point.',
+  manager: 'Reword this to frame the feedback in terms of team impact, project health, and constructive leadership.',
+  client: 'Reword this to be warm, polished, and client-appropriate while still making the point.',
+  direct: 'Reword this to be honest and direct but kind — no sugarcoating, but no hostility either.',
+};
+const STYLE_LABELS = {
+  diplomatic: 'Diplomatic',
+  manager: 'Manager',
+  client: 'Client-facing',
+  direct: 'Direct',
+};
+
 // ============================================
 // State
 // ============================================
@@ -643,6 +728,7 @@ let state = {
   silenceTimer: null,
   recognition: null,
   history: [],
+  lastDismissedStyle: null,
 };
 
 // ============================================
@@ -658,6 +744,7 @@ function getSettings() {
     silenceTimeout: 3,
     style: 'diplomatic',
     customInstructions: '',
+    suggestStyle: true,
   };
   try {
     const saved = JSON.parse(localStorage.getItem('reframe_settings') || '{}');
@@ -677,6 +764,7 @@ function saveSettings() {
     silenceTimeout: parseInt(document.getElementById('silenceTimeout').value) || 3,
     style: document.getElementById('styleSelect').value,
     customInstructions: document.getElementById('customInstructions').value,
+    suggestStyle: document.getElementById('suggestStyleToggle').checked,
   };
   localStorage.setItem('reframe_settings', JSON.stringify(settings));
   toggleSettings();
@@ -693,6 +781,7 @@ function loadSettingsUI() {
   document.getElementById('silenceTimeout').value = s.silenceTimeout;
   document.getElementById('styleSelect').value = s.style;
   document.getElementById('customInstructions').value = s.customInstructions;
+  document.getElementById('suggestStyleToggle').checked = s.suggestStyle;
   updateProviderFields();
 }
 
@@ -900,13 +989,15 @@ async function processUserInput() {
   try {
     const reframed = await callLLM(userThought, meetingContext, settings);
     hideLoadingPanel();
-    showReframedResponse(userThought, reframed);
+    const reframePanel = showReframedResponse(userThought, reframed);
 
     state.history.push({
       original: userThought,
       reframed: reframed,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     });
+
+    analyzeStyleFit(userThought, meetingContext, settings, reframePanel).catch(() => {});
   } catch (err) {
     hideLoadingPanel();
     showToast('Error: ' + err.message);
@@ -918,17 +1009,17 @@ async function processUserInput() {
   setStatus('listening', 'Listening to meeting...');
 }
 
-async function callLLM(userThought, meetingContext, settings) {
-  const styleGuides = {
-    diplomatic: 'Reword this to be professional, constructive, and diplomatic while preserving the core point.',
-    manager: 'Reword this to frame the feedback in terms of team impact, project health, and constructive leadership.',
-    client: 'Reword this to be warm, polished, and client-appropriate while still making the point.',
-    direct: 'Reword this to be honest and direct but kind — no sugarcoating, but no hostility either.',
-  };
+async function dispatchToProvider(systemPrompt, userMessage, settings) {
+  if (settings.provider === 'anthropic') return await callAnthropic(systemPrompt, userMessage, settings);
+  if (settings.provider === 'openai') return await callOpenAI(systemPrompt, userMessage, settings);
+  if (settings.provider === 'ollama') return await callOllama(systemPrompt, userMessage, settings);
+  throw new Error(`Unknown provider: ${settings.provider}`);
+}
 
+async function callLLM(userThought, meetingContext, settings) {
   const systemPrompt = `You are Reframe, a communication coach. The user is in a meeting and has privately told you their real, unfiltered thoughts. Your job is to help them express this in a way that will be well-received.
 
-${styleGuides[settings.style] || styleGuides.diplomatic}
+${STYLE_GUIDES[settings.style] || STYLE_GUIDES.diplomatic}
 
 ${settings.customInstructions ? `Additional context from the user: ${settings.customInstructions}` : ''}
 
@@ -944,12 +1035,52 @@ ${meetingContext || '(no context captured yet)'}
 My real thoughts:
 "${userThought}"`;
 
-  if (settings.provider === 'anthropic') {
-    return await callAnthropic(systemPrompt, userMessage, settings);
-  } else if (settings.provider === 'openai') {
-    return await callOpenAI(systemPrompt, userMessage, settings);
-  } else if (settings.provider === 'ollama') {
-    return await callOllama(systemPrompt, userMessage, settings);
+  return await dispatchToProvider(systemPrompt, userMessage, settings);
+}
+
+async function analyzeStyleFit(userThought, meetingContext, settings, reframePanel) {
+  if (!settings.suggestStyle) return;
+  if (state.meetingContext.length < 5) return;
+
+  const styleList = Object.entries(STYLE_GUIDES)
+    .map(([key, desc]) => `- ${key}: ${desc}`)
+    .join('\n');
+
+  const systemPrompt = `You are a communication style advisor for someone in a meeting. Based on the meeting transcript and what they privately want to say, decide which reframing style fits this moment best.
+
+Available styles:
+${styleList}
+
+The user is currently using the "${settings.style}" style.
+
+Review the transcript and the user's thought. If a different style would serve them better in this specific context, recommend it. If the current style is already a good fit, respond with the current style.
+
+Respond with EXACTLY two lines and nothing else:
+STYLE: <one of: ${Object.keys(STYLE_GUIDES).join(', ')}>
+REASON: <one sentence explaining why this style fits this conversation>`;
+
+  const userMessage = `Meeting transcript so far:
+${meetingContext || '(minimal context)'}
+
+What the user privately said:
+"${userThought}"
+
+Current style: ${settings.style}`;
+
+  try {
+    const raw = await dispatchToProvider(systemPrompt, userMessage, settings);
+    const styleMatch = raw.match(/^STYLE:\s*(\w+)/im);
+    const reasonMatch = raw.match(/^REASON:\s*(.+)/im);
+    if (!styleMatch || !reasonMatch) return;
+
+    const recommendedStyle = styleMatch[1].toLowerCase().trim();
+    if (!STYLE_GUIDES[recommendedStyle]) return;
+    if (recommendedStyle === settings.style) return;
+    if (recommendedStyle === state.lastDismissedStyle) return;
+
+    showSuggestPanel(recommendedStyle, reasonMatch[1].trim(), reframePanel);
+  } catch {
+    // silent — the reframe already succeeded; suggestion is non-critical
   }
 }
 
@@ -1055,6 +1186,49 @@ function showReframedResponse(original, response) {
   const main = document.getElementById('mainContent');
   main.appendChild(panel);
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  return panel;
+}
+
+function showSuggestPanel(style, reason, reframePanel) {
+  if (!reframePanel || !reframePanel.isConnected) return;
+
+  const label = STYLE_LABELS[style] || style;
+  const panel = document.createElement('div');
+  panel.className = 'panel suggest-panel';
+  panel.innerHTML = `
+    <div class="panel-header">
+      <span>⚡ Style Suggestion</span>
+    </div>
+    <div class="panel-body">
+      <div>Switch to <strong>${escapeHtml(label)}</strong> for this conversation?</div>
+      <div class="suggest-reason">${escapeHtml(reason)}</div>
+      <div class="suggest-actions">
+        <button class="suggest-btn apply">Apply</button>
+        <button class="suggest-btn dismiss">Dismiss</button>
+      </div>
+    </div>
+  `;
+
+  panel.querySelector('.suggest-btn.apply').addEventListener('click', () => applyStyleSuggestion(style, panel));
+  panel.querySelector('.suggest-btn.dismiss').addEventListener('click', () => dismissStyleSuggestion(style, panel));
+
+  reframePanel.insertAdjacentElement('afterend', panel);
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function applyStyleSuggestion(style, panel) {
+  const settings = getSettings();
+  settings.style = style;
+  localStorage.setItem('reframe_settings', JSON.stringify(settings));
+  const sel = document.getElementById('styleSelect');
+  if (sel) sel.value = style;
+  if (panel) panel.remove();
+  showToast('Style updated to ' + (STYLE_LABELS[style] || style));
+}
+
+function dismissStyleSuggestion(style, panel) {
+  state.lastDismissedStyle = style;
+  if (panel) panel.remove();
 }
 
 function showLoadingPanel() {
