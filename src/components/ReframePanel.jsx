@@ -5,10 +5,10 @@ export default function ReframePanel({ original, reframed, time, animate = true 
   let whyText = '';
 
   const sayMatch = reframed.match(/SAY:\s*([\s\S]*?)(?=WHY:|$)/i);
-  const whyMatch = reframed.match(/WHY:\s*([\s\S]*?)$/i);
+  const whyMatchResult = reframed.match(/WHY:\s*([\s\S]*?)$/i);
 
   if (sayMatch) sayText = sayMatch[1].trim();
-  if (whyMatch) whyText = whyMatch[1].trim();
+  if (whyMatch) whyText = whyMatchResult[1].trim();
 
   return (
     <div className={`panel reframe-panel ${animate ? '' : 'no-animate'}`}>
