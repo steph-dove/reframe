@@ -1,9 +1,11 @@
+import { PROVIDERS } from '../services/llm';
+
 const STORAGE_KEY = 'reframe_settings';
 
 const defaults = {
   provider: 'anthropic',
   apiKey: '',
-  model: 'claude-sonnet-4-20250514',
+  model: PROVIDERS.anthropic.defaultModel,
   ollamaUrl: 'http://localhost:11434',
   wakePhrase: "here's the thing",
   silenceTimeout: 3,

@@ -1,3 +1,4 @@
+import { useEffect, useState, useCallback } from 'react';
 import {
   getConversations,
   deleteConversation,
@@ -13,29 +14,46 @@ export default function HistoryModal({
   activeConversationId,
   onToast,
 }) {
-  const conversations = getConversations().sort(
-    (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
-  );
+  const [conversations, setConversations] = useState([]);
+
+  const refresh = useCallback(() => {
+    const list = getConversations().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    setConversations(list);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) refresh();
+  }, [isOpen, refresh]);
 
   const handleDelete = (id, e) => {
     e.stopPropagation();
-    deleteConversation(id);
+    const ok = deleteConversation(id);
+    if (ok === false) {
+      onToast('Could not delete — storage unavailable');
+      return;
+    }
+    setConversations((prev) => prev.filter((c) => c.id !== id));
     onToast('Conversation deleted');
-    // Force re-render by closing and reopening — parent handles this
-    onClose();
   };
 
   const handleClearAll = () => {
     if (window.confirm('Delete all saved conversations?')) {
       clearAllConversations();
+      setConversations([]);
       onToast('All conversations cleared');
-      onClose();
     }
   };
 
   const handleLoad = (id) => {
     onLoadConversation(id);
     onClose();
+  };
+
+  const handleKeyDown = (id) => (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleLoad(id);
+    }
   };
 
   return (
@@ -56,7 +74,10 @@ export default function HistoryModal({
                 <div
                   key={conv.id}
                   className={`history-item ${conv.id === activeConversationId ? 'active' : ''}`}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleLoad(conv.id)}
+                  onKeyDown={handleKeyDown(conv.id)}
                 >
                   <div className="history-item-info">
                     <div className="history-item-title">{conv.title}</div>

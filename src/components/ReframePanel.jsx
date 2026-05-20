@@ -1,15 +1,6 @@
 import './ReframePanel.css';
 
-export default function ReframePanel({ original, reframed, time, animate = true }) {
-  let sayText = reframed;
-  let whyText = '';
-
-  const sayMatch = reframed.match(/SAY:\s*([\s\S]*?)(?=WHY:|$)/i);
-  const whyMatchResult = reframed.match(/WHY:\s*([\s\S]*?)$/i);
-
-  if (sayMatch) sayText = sayMatch[1].trim();
-  if (whyMatch) whyText = whyMatchResult[1].trim();
-
+export default function ReframePanel({ original, say, why, time, animate = true }) {
   return (
     <div className={`panel reframe-panel ${animate ? '' : 'no-animate'}`}>
       <div className="panel-header">
@@ -18,8 +9,8 @@ export default function ReframePanel({ original, reframed, time, animate = true 
       </div>
       <div className="panel-body">
         <div className="original-thought">&ldquo;{original}&rdquo;</div>
-        {sayText}
-        {whyText && <div className="reframe-explanation">{whyText}</div>}
+        {say}
+        {why && <div className="reframe-explanation">{why}</div>}
       </div>
     </div>
   );

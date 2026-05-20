@@ -8,7 +8,7 @@ on:
 
 jobs:
   ci:
-    name: Lint, format, build
+    name: Lint, format, test, build
     runs-on: ubuntu-latest
 
     steps:
@@ -29,6 +29,9 @@ jobs:
 
       - name: Format check
         run: npm run format:check
+
+      - name: Test
+        run: npm test
 
       - name: Build
         run: npm run build

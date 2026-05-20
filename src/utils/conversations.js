@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'reframe_conversations';
+const MAX_CONVERSATIONS = 100;
 
 function getData() {
   try {
@@ -11,8 +12,10 @@ function getData() {
 function setData(data) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {
-    console.warn('localStorage quota exceeded');
+    return true;
+  } catch (err) {
+    console.warn('Failed to write to localStorage:', err);
+    return false;
   }
 }
 
@@ -22,7 +25,10 @@ export function getConversations() {
 }
 
 export function generateConversationId() {
-  return 'conv_' + Date.now();
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return `conv_${crypto.randomUUID()}`;
+  }
+  return `conv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function generateTitle(history) {
@@ -32,8 +38,8 @@ export function generateTitle(history) {
 }
 
 export function saveCurrentConversation(activeId, meetingContext, history) {
-  if (!activeId) return;
-  if (meetingContext.length === 0 && history.length === 0) return;
+  if (!activeId) return true;
+  if (meetingContext.length === 0 && history.length === 0) return true;
 
   const data = getData();
   const conversations = data.conversations || [];
@@ -55,7 +61,13 @@ export function saveCurrentConversation(activeId, meetingContext, history) {
     conversations.push(record);
   }
 
-  setData({ conversations });
+  // Evict oldest by updatedAt if over cap
+  if (conversations.length > MAX_CONVERSATIONS) {
+    conversations.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    conversations.length = MAX_CONVERSATIONS;
+  }
+
+  return setData({ conversations });
 }
 
 export function loadConversation(id) {
@@ -66,11 +78,11 @@ export function loadConversation(id) {
 export function deleteConversation(id) {
   const data = getData();
   const conversations = (data.conversations || []).filter((c) => c.id !== id);
-  setData({ conversations });
+  return setData({ conversations });
 }
 
 export function clearAllConversations() {
-  setData({ conversations: [] });
+  return setData({ conversations: [] });
 }
 
 export function formatRelativeDate(isoString) {
