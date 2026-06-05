@@ -13,7 +13,7 @@ A real-time communication coach that helps you express your thoughts more diplom
 
 ## Quick Start
 
-Requirements: Node.js 18+ and npm.
+Requirements: Node.js 20.19+ and npm (required by Vite 8).
 
 ```bash
 npm install
@@ -78,6 +78,16 @@ Run AI models locally without an API key.
 - **Client-facing** - Extra polished and warm
 - **Direct** - Honest but kind
 
+## Conversation History
+
+Reframe keeps your reframes grouped per conversation in your browser's localStorage:
+
+- A new conversation starts automatically when the app loads.
+- Use the **+** button in the header to start a fresh conversation without losing the current one.
+- Use the **clock** button in the header to open the history modal, where you can resume a previous conversation or delete one.
+- Up to 100 conversations are kept; the oldest are evicted automatically.
+- Nothing is sent off-device — conversations live only in your browser. Use **Clear All** in the history modal to wipe them.
+
 ## Production Build
 
 ```bash
@@ -97,7 +107,8 @@ The Web Speech API requires HTTPS (or `localhost`). For non-local hosting, serve
 
 - API keys are stored locally in your browser's localStorage and sent directly to your chosen provider when reframing
 - Anyone with access to this device can read those keys
-- Meeting context and reframed responses stay in your browser
+- Meeting context, reframed responses, and saved conversations stay in your browser
+- The Content-Security-Policy locks outbound network calls to `api.anthropic.com`, `api.openai.com`, and `localhost:11434` / `127.0.0.1:11434` (Ollama's default port)
 
 ## Troubleshooting
 

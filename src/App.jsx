@@ -5,62 +5,51 @@ import StatusBar from './components/StatusBar';
 import MeetingContext from './components/MeetingContext';
 import UserInput from './components/UserInput';
 import ReframePanel from './components/ReframePanel';
-import TextInputBar from './components/TextInputBar';
 import BottomBar from './components/BottomBar';
 import SettingsModal from './components/SettingsModal';
-import HistoryModal from './components/HistoryModal';
 import Toast from './components/Toast';
 import { getSettings, saveSettings } from './utils/settings';
-import { callLLM, parseReframe } from './services/llm';
-import {
-  generateConversationId,
-  saveCurrentConversation,
-  loadConversation as loadConversationData,
-} from './utils/conversations';
+import { callLLM } from './services/llm';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
+import { useConversation } from './hooks/useConversation';
 
-function generateEntryId() {
-  return typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `entry_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function hydrateEntry(entry) {
-  const withId = entry.id ? entry : { ...entry, id: generateEntryId() };
-  if (withId.say !== undefined || withId.why !== undefined) return withId;
-  const parsed = parseReframe(withId.reframed || '');
-  return { ...withId, say: parsed.say, why: parsed.why };
-}
+const READY_STATUS = { type: '', text: 'Ready — tap mic to begin' };
+const LISTENING_STATUS = { type: 'listening', text: 'Listening to meeting...' };
 
 export default function App() {
-  const [status, setStatus] = useState({ type: '', text: 'Ready — tap mic to begin' });
-  const [meetingContext, setMeetingContext] = useState([]);
+  const [status, setStatus] = useState(READY_STATUS);
   const [userInputText, setUserInputText] = useState('');
-  const [history, setHistory] = useState([]);
   const [listening, setListening] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [textInputActive, setTextInputActive] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [toast, setToast] = useState('');
-  const [loadedConversation, setLoadedConversation] = useState(false);
+  const [toast, setToast] = useState(null);
   const [settings, setSettings] = useState(getSettings);
 
-  const activeConvIdRef = useRef(generateConversationId());
-  const meetingContextRef = useRef(meetingContext);
-  const historyRef = useRef(history);
+  const showToast = useCallback((msg) => {
+    setToast({ id: Date.now() + Math.random(), message: msg });
+  }, []);
+  const handleToastDone = useCallback(() => setToast(null), []);
+
+  const conversation = useConversation({ onToast: showToast });
+  const {
+    meetingContext,
+    history,
+    addMeetingContext,
+    appendEntry,
+    buildEntry,
+    getMeetingContextSnapshot,
+  } = conversation;
+
+  const settingsRef = useRef(settings);
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
   const requestControllerRef = useRef(null);
-
+  const listeningRef = useRef(listening);
   useEffect(() => {
-    meetingContextRef.current = meetingContext;
-  }, [meetingContext]);
-
-  useEffect(() => {
-    historyRef.current = history;
-  }, [history]);
-
-  const showToast = useCallback((msg) => setToast(msg), []);
-  const handleToastDone = useCallback(() => setToast(''), []);
+    listeningRef.current = listening;
+  }, [listening]);
 
   const abortInFlight = useCallback(() => {
     if (requestControllerRef.current) {
@@ -69,13 +58,23 @@ export default function App() {
     }
   }, []);
 
+  const ensureConfigured = useCallback(() => {
+    const s = settingsRef.current;
+    if (!s.apiKey && s.provider !== 'ollama') {
+      setSettingsOpen(true);
+      showToast('Add your API key to get started');
+      return false;
+    }
+    return true;
+  }, [showToast]);
+
   const doReframe = useCallback(
     async (userThought) => {
       setProcessing(true);
       setStatus({ type: 'processing', text: 'Reframing your thoughts...' });
       setUserInputText('');
 
-      const contextText = meetingContextRef.current
+      const contextText = getMeetingContextSnapshot()
         .slice(-20)
         .map((c) => c.text)
         .join(' ');
@@ -85,51 +84,28 @@ export default function App() {
       requestControllerRef.current = controller;
 
       try {
-        const { say, why, raw } = await callLLM(userThought, contextText, settings, {
-          signal: controller.signal,
-        });
-        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const entry = {
-          id: generateEntryId(),
-          original: userThought,
-          say,
-          why,
-          reframed: raw,
-          time,
-        };
-        const next = [...historyRef.current, entry];
-        setHistory(next);
-        const saved = saveCurrentConversation(
-          activeConvIdRef.current,
-          meetingContextRef.current,
-          next
+        const { say, why, raw } = await callLLM(
+          userThought,
+          contextText,
+          settingsRef.current,
+          { signal: controller.signal }
         );
-        if (saved === false) {
-          showToast('Could not save conversation — storage unavailable or full');
-        }
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        appendEntry(buildEntry({ original: userThought, say, why, reframed: raw, time }));
       } catch (err) {
         if (err.name !== 'AbortError') {
-          showToast('Error: ' + err.message);
+          showToast(err.message || 'Reframe failed');
         }
       } finally {
         if (requestControllerRef.current === controller) {
           requestControllerRef.current = null;
+          setProcessing(false);
+          setStatus(listeningRef.current ? LISTENING_STATUS : READY_STATUS);
         }
-        setProcessing(false);
-        setStatus(
-          listening
-            ? { type: 'listening', text: 'Listening to meeting...' }
-            : { type: '', text: 'Ready — tap mic to begin' }
-        );
       }
     },
-    [listening, showToast, settings, abortInFlight]
+    [abortInFlight, appendEntry, buildEntry, getMeetingContextSnapshot, showToast]
   );
-
-  const handleMeetingContext = useCallback((text) => {
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    setMeetingContext((prev) => [...prev, { text, time }].slice(-50));
-  }, []);
 
   const handleWakeDetected = useCallback(() => {
     setUserInputText('');
@@ -140,13 +116,6 @@ export default function App() {
   const handleUserInput = useCallback((text) => {
     setUserInputText(text);
   }, []);
-
-  const handleProcessInput = useCallback(
-    (text) => {
-      doReframe(text);
-    },
-    [doReframe]
-  );
 
   const handleSpeechError = useCallback(
     (msg) => {
@@ -160,10 +129,10 @@ export default function App() {
   const { start: startRecognition, stop: stopRecognition } = useSpeechRecognition({
     wakePhrase: settings.wakePhrase,
     silenceTimeout: settings.silenceTimeout,
-    onMeetingContext: handleMeetingContext,
+    onMeetingContext: addMeetingContext,
     onUserInput: handleUserInput,
     onWakeDetected: handleWakeDetected,
-    onProcessInput: handleProcessInput,
+    onProcessInput: doReframe,
     onError: handleSpeechError,
   });
 
@@ -174,11 +143,7 @@ export default function App() {
   }, [abortInFlight]);
 
   const toggleListening = useCallback(() => {
-    if (!settings.apiKey && settings.provider !== 'ollama') {
-      setSettingsOpen(true);
-      showToast('Add your API key to get started');
-      return;
-    }
+    if (!ensureConfigured()) return;
 
     if (listening) {
       stopRecognition();
@@ -188,71 +153,21 @@ export default function App() {
       const started = startRecognition();
       if (started) {
         setListening(true);
-        setStatus({ type: 'listening', text: 'Listening to meeting...' });
+        setStatus(LISTENING_STATUS);
       }
     }
-  }, [listening, startRecognition, stopRecognition, showToast, settings]);
-
-  const handleTextSubmit = useCallback(
-    (text) => {
-      if (!settings.apiKey && settings.provider !== 'ollama') {
-        setSettingsOpen(true);
-        showToast('Add your API key to get started');
-        return;
-      }
-      setTextInputActive(false);
-      setUserInputText(text);
-      doReframe(text);
-    },
-    [doReframe, showToast, settings]
-  );
-
-  const handleNewConversation = useCallback(() => {
-    abortInFlight();
-    saveCurrentConversation(activeConvIdRef.current, meetingContextRef.current, historyRef.current);
-
-    activeConvIdRef.current = generateConversationId();
-    setMeetingContext([]);
-    setHistory([]);
-    setUserInputText('');
-    setLoadedConversation(false);
-    showToast('New conversation');
-  }, [showToast, abortInFlight]);
-
-  const handleLoadConversation = useCallback(
-    (id) => {
-      abortInFlight();
-      saveCurrentConversation(
-        activeConvIdRef.current,
-        meetingContextRef.current,
-        historyRef.current
-      );
-
-      const conv = loadConversationData(id);
-      if (!conv) return;
-
-      activeConvIdRef.current = conv.id;
-      setMeetingContext(conv.meetingContext || []);
-      setHistory((conv.history || []).map(hydrateEntry));
-      setUserInputText('');
-      setLoadedConversation(true);
-      setHistoryOpen(false);
-    },
-    [abortInFlight]
-  );
+  }, [listening, startRecognition, stopRecognition, ensureConfigured]);
 
   const handleSettingsSave = useCallback((next) => {
-    saveSettings(next);
+    const ok = saveSettings(next);
+    if (ok === false) return false;
     setSettings(next);
+    return true;
   }, []);
 
   return (
     <div className="app">
-      <Header
-        onShowHistory={() => setHistoryOpen(true)}
-        onNewConversation={handleNewConversation}
-        onShowSettings={() => setSettingsOpen(true)}
-      />
+      <Header onShowSettings={() => setSettingsOpen(true)} />
       <StatusBar type={status.type} text={status.text} />
 
       <div className="main">
@@ -282,18 +197,12 @@ export default function App() {
             say={entry.say}
             why={entry.why}
             time={entry.time}
-            animate={!loadedConversation}
+            animate={true}
           />
         ))}
       </div>
 
-      <TextInputBar isActive={textInputActive} onSubmit={handleTextSubmit} />
-      <BottomBar
-        listening={listening}
-        textInputActive={textInputActive}
-        onToggleListening={toggleListening}
-        onToggleTextInput={() => setTextInputActive((a) => !a)}
-      />
+      <BottomBar listening={listening} onToggleListening={toggleListening} />
 
       <SettingsModal
         isOpen={settingsOpen}
@@ -302,14 +211,7 @@ export default function App() {
         settings={settings}
         onSave={handleSettingsSave}
       />
-      <HistoryModal
-        isOpen={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        onLoadConversation={handleLoadConversation}
-        activeConversationId={activeConvIdRef.current}
-        onToast={showToast}
-      />
-      <Toast message={toast} onDone={handleToastDone} />
+      <Toast toast={toast} onDone={handleToastDone} />
     </div>
   );
 }

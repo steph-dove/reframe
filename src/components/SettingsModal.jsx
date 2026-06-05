@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PROVIDERS } from '../services/llm';
+import { DEFAULT_WAKE_PHRASE } from '../utils/settings';
+import { normalizeOllamaUrl } from '../utils/ollamaUrl';
 
 const MIN_SILENCE_TIMEOUT = 1;
 const MAX_SILENCE_TIMEOUT = 10;
@@ -15,16 +17,33 @@ export default function SettingsModal({ isOpen, onClose, onToast, settings, onSa
 
   const handleSave = () => {
     const parsed = parseInt(form.silenceTimeout, 10);
+    const wakePhrase = (form.wakePhrase || '').toLowerCase().trim() || DEFAULT_WAKE_PHRASE;
+
+    let ollamaUrl = (form.ollamaUrl || '').trim();
+    if (form.provider === 'ollama') {
+      const result = normalizeOllamaUrl(form.ollamaUrl);
+      if (result.error) {
+        onToast(result.error);
+        return;
+      }
+      ollamaUrl = result.value;
+    }
+
     const next = {
       ...form,
       apiKey: form.apiKey.trim(),
-      wakePhrase: form.wakePhrase.toLowerCase().trim(),
+      ollamaUrl,
+      wakePhrase,
       silenceTimeout: Math.min(
         MAX_SILENCE_TIMEOUT,
         Math.max(MIN_SILENCE_TIMEOUT, Number.isFinite(parsed) ? parsed : 3)
       ),
     };
-    onSave(next);
+    const saved = onSave(next);
+    if (saved === false) {
+      onToast('Could not save settings — storage unavailable');
+      return;
+    }
     onClose();
     onToast('Settings saved');
   };
@@ -81,6 +100,7 @@ export default function SettingsModal({ isOpen, onClose, onToast, settings, onSa
               onChange={update('ollamaUrl')}
               placeholder="http://localhost:11434"
             />
+            <div className="hint">Must point to localhost or 127.0.0.1.</div>
           </div>
         )}
 

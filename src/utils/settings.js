@@ -13,6 +13,8 @@ const defaults = {
   customInstructions: '',
 };
 
+export const DEFAULT_WAKE_PHRASE = defaults.wakePhrase;
+
 export function getSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
@@ -23,5 +25,11 @@ export function getSettings() {
 }
 
 export function saveSettings(settings) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    return true;
+  } catch (err) {
+    console.warn('Failed to write settings:', err);
+    return false;
+  }
 }

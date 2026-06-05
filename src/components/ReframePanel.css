@@ -23,6 +23,15 @@
   max-height: none;
 }
 
+.reframe-panel .reframe-time {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.reframe-say {
+  white-space: pre-wrap;
+}
+
 .original-thought {
   margin-bottom: 12px;
   padding-bottom: 12px;

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import './MeetingContext.css';
 
 export default function MeetingContext({ meetingContext }) {
   const bodyRef = useRef(null);
@@ -21,10 +22,9 @@ export default function MeetingContext({ meetingContext }) {
       <div className={`panel-body ${isEmpty ? 'empty' : ''}`} ref={bodyRef}>
         {isEmpty
           ? 'Listening for meeting audio...'
-          : meetingContext.map((c, i) => (
-              <div key={i}>
-                <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>{c.time}</span>{' '}
-                {c.text}
+          : meetingContext.map((c) => (
+              <div key={c.id}>
+                <span className="meeting-context-time">{c.time}</span> {c.text}
               </div>
             ))}
       </div>
