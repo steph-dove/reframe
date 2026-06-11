@@ -31,6 +31,7 @@ export default function App() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [toast, setToast] = useState('');
   const [loadedConversation, setLoadedConversation] = useState(false);
+  const [tokenUsage, setTokenUsage] = useState({ inputTokens: 0, outputTokens: 0 });
 
   const activeConvIdRef = useRef(generateConversationId());
   const meetingContextRef = useRef(meetingContext);
@@ -55,9 +56,14 @@ export default function App() {
       const settings = getSettings();
 
       try {
-        const reframed = await callLLM(userThought, contextText, settings);
+        const { text: reframed, usage } = await callLLM(userThought, contextText, settings);
         const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const entry = { original: userThought, reframed, time };
+
+        setTokenUsage((prev) => ({
+          inputTokens: prev.inputTokens + usage.inputTokens,
+          outputTokens: prev.outputTokens + usage.outputTokens,
+        }));
 
         setHistory((prev) => {
           const next = [...prev, entry];
@@ -170,6 +176,7 @@ export default function App() {
     setMeetingContext([]);
     setHistory([]);
     setUserInputText('');
+    setTokenUsage({ inputTokens: 0, outputTokens: 0 });
     setLoadedConversation(false);
     showToast('New conversation');
   }, [showToast]);
@@ -185,6 +192,7 @@ export default function App() {
     setMeetingContext(conv.meetingContext || []);
     setHistory(conv.history || []);
     setUserInputText('');
+    setTokenUsage({ inputTokens: 0, outputTokens: 0 });
     setLoadedConversation(true);
     setHistoryOpen(false);
   }, []);
@@ -196,7 +204,7 @@ export default function App() {
         onNewConversation={handleNewConversation}
         onShowSettings={() => setSettingsOpen(true)}
       />
-      <StatusBar type={status.type} text={status.text} />
+      <StatusBar type={status.type} text={status.text} tokenUsage={tokenUsage} />
 
       <div className="main">
         <MeetingContext meetingContext={meetingContext} />

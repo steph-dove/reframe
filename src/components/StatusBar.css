@@ -33,3 +33,8 @@
 .status-dot.error {
   background: var(--error);
 }
+
+.token-usage {
+  margin-left: auto;
+  flex-shrink: 0;
+}

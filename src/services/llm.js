@@ -53,7 +53,13 @@ async function callAnthropic(systemPrompt, userMessage, settings) {
   }
 
   const data = await res.json();
-  return data.content[0].text;
+  return {
+    text: data.content[0].text,
+    usage: {
+      inputTokens: data.usage?.input_tokens ?? 0,
+      outputTokens: data.usage?.output_tokens ?? 0,
+    },
+  };
 }
 
 async function callOpenAI(systemPrompt, userMessage, settings) {
@@ -79,7 +85,13 @@ async function callOpenAI(systemPrompt, userMessage, settings) {
   }
 
   const data = await res.json();
-  return data.choices[0].message.content;
+  return {
+    text: data.choices[0].message.content,
+    usage: {
+      inputTokens: data.usage?.prompt_tokens ?? 0,
+      outputTokens: data.usage?.completion_tokens ?? 0,
+    },
+  };
 }
 
 async function callOllama(systemPrompt, userMessage, settings) {
@@ -98,7 +110,13 @@ async function callOllama(systemPrompt, userMessage, settings) {
 
   if (!res.ok) throw new Error(`Ollama error ${res.status}`);
   const data = await res.json();
-  return data.message.content;
+  return {
+    text: data.message.content,
+    usage: {
+      inputTokens: data.prompt_eval_count ?? 0,
+      outputTokens: data.eval_count ?? 0,
+    },
+  };
 }
 
 export async function callLLM(userThought, meetingContext, settings) {
