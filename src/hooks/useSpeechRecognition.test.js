@@ -146,7 +146,7 @@ describe('useSpeechRecognition', () => {
     }
   });
 
-  it('does not re-append a final result re-emitted with the same index', () => {
+  it('does not re-append a final result re-emitted with the same index within a session', () => {
     const onUserInput = vi.fn();
     const { result } = renderHook(() =>
       useSpeechRecognition({
@@ -163,14 +163,146 @@ describe('useSpeechRecognition', () => {
       result.current.start();
     });
     act(() => {
-      mockRecognizer._emit('onresult', resultsEvent([{ transcript: 'go first part', isFinal: true }]));
+      mockRecognizer._emit(
+        'onresult',
+        resultsEvent([{ transcript: 'go first part', isFinal: true }])
+      );
     });
     act(() => {
-      // Same index re-emitted (some engines do this after restart)
-      mockRecognizer._emit('onresult', resultsEvent([{ transcript: 'go first part', isFinal: true }]));
+      // Same index re-emitted within the same session (no onend in between)
+      mockRecognizer._emit(
+        'onresult',
+        resultsEvent([{ transcript: 'go first part', isFinal: true }])
+      );
     });
     // first call from wake-detection, no second append from the duplicate final
     const passedValues = onUserInput.mock.calls.map((c) => c[0]);
     expect(passedValues.filter((v) => v === 'first part').length).toBe(1);
+  });
+
+  it('processes finals at previously seen indexes after an onend restart', () => {
+    vi.useFakeTimers();
+    try {
+      const onMeetingContext = vi.fn();
+      const { result } = renderHook(() =>
+        useSpeechRecognition({
+          wakePhrase: "here's the thing",
+          silenceTimeout: 3,
+          onMeetingContext,
+          onUserInput: vi.fn(),
+          onWakeDetected: vi.fn(),
+          onProcessInput: vi.fn(),
+          onError: vi.fn(),
+        })
+      );
+      act(() => {
+        result.current.start();
+      });
+      act(() => {
+        mockRecognizer._emit(
+          'onresult',
+          resultsEvent([{ transcript: 'first session talk', isFinal: true }])
+        );
+      });
+      act(() => {
+        mockRecognizer._emit('onend');
+        vi.advanceTimersByTime(100);
+      });
+      // The restarted session numbers results from 0 again; index 0 must not
+      // be deduped against the previous session.
+      act(() => {
+        mockRecognizer._emit(
+          'onresult',
+          resultsEvent([{ transcript: 'second session talk', isFinal: true }])
+        );
+      });
+      expect(onMeetingContext).toHaveBeenCalledWith('first session talk');
+      expect(onMeetingContext).toHaveBeenCalledWith('second session talk');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reschedules start after onend while listening', () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() =>
+        useSpeechRecognition({
+          wakePhrase: "here's the thing",
+          silenceTimeout: 3,
+          onMeetingContext: vi.fn(),
+          onUserInput: vi.fn(),
+          onWakeDetected: vi.fn(),
+          onProcessInput: vi.fn(),
+          onError: vi.fn(),
+        })
+      );
+      act(() => {
+        result.current.start();
+      });
+      expect(mockRecognizer.start).toHaveBeenCalledTimes(1);
+      act(() => {
+        mockRecognizer._emit('onend');
+        vi.advanceTimersByTime(100);
+      });
+      expect(mockRecognizer.start).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stops without restarting after a not-allowed error', () => {
+    vi.useFakeTimers();
+    try {
+      const onError = vi.fn();
+      const { result } = renderHook(() =>
+        useSpeechRecognition({
+          wakePhrase: "here's the thing",
+          silenceTimeout: 3,
+          onMeetingContext: vi.fn(),
+          onUserInput: vi.fn(),
+          onWakeDetected: vi.fn(),
+          onProcessInput: vi.fn(),
+          onError,
+        })
+      );
+      act(() => {
+        result.current.start();
+      });
+      act(() => {
+        mockRecognizer._emit('onerror', { error: 'not-allowed' });
+        mockRecognizer._emit('onend');
+        vi.advanceTimersByTime(5000);
+      });
+      expect(onError).toHaveBeenCalledWith('Microphone access denied');
+      expect(mockRecognizer.start).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stops after five consecutive network errors', () => {
+    const onError = vi.fn();
+    const { result } = renderHook(() =>
+      useSpeechRecognition({
+        wakePhrase: "here's the thing",
+        silenceTimeout: 3,
+        onMeetingContext: vi.fn(),
+        onUserInput: vi.fn(),
+        onWakeDetected: vi.fn(),
+        onProcessInput: vi.fn(),
+        onError,
+      })
+    );
+    act(() => {
+      result.current.start();
+    });
+    act(() => {
+      for (let i = 0; i < 5; i++) {
+        mockRecognizer._emit('onerror', { error: 'network' });
+      }
+    });
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith('Network error — speech recognition stopped');
   });
 });

@@ -1,8 +1,8 @@
 import './ReframePanel.css';
 
-export default function ReframePanel({ original, say, why, time, animate = true }) {
+export default function ReframePanel({ original, say, why, time }) {
   return (
-    <div className={`panel reframe-panel ${animate ? '' : 'no-animate'}`}>
+    <div className="panel reframe-panel">
       <div className="panel-header">
         <span>&#10022; Say This Instead</span>
         <span className="reframe-time">{time}</span>

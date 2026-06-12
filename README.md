@@ -80,13 +80,7 @@ Run AI models locally without an API key.
 
 ## Conversation History
 
-Reframe keeps your reframes grouped per conversation in your browser's localStorage:
-
-- A new conversation starts automatically when the app loads.
-- Use the **+** button in the header to start a fresh conversation without losing the current one.
-- Use the **clock** button in the header to open the history modal, where you can resume a previous conversation or delete one.
-- Up to 100 conversations are kept; the oldest are evicted automatically.
-- Nothing is sent off-device — conversations live only in your browser. Use **Clear All** in the history modal to wipe them.
+Reframes live in memory for the current page session only — reloading the page clears them.
 
 ## Production Build
 
@@ -96,6 +90,8 @@ npm run preview
 ```
 
 The Web Speech API requires HTTPS (or `localhost`). For non-local hosting, serve the built `dist/` over HTTPS.
+
+The built page's Content-Security-Policy is delivered via a meta tag, which browsers ignore for `frame-ancestors`. To get clickjacking protection, whatever serves `dist/` must send it as an HTTP header (e.g. `Content-Security-Policy: frame-ancestors 'none'` or `X-Frame-Options: DENY`).
 
 ## Browser Requirements
 
@@ -107,8 +103,8 @@ The Web Speech API requires HTTPS (or `localhost`). For non-local hosting, serve
 
 - API keys are stored locally in your browser's localStorage and sent directly to your chosen provider when reframing
 - Anyone with access to this device can read those keys
-- Meeting context, reframed responses, and saved conversations stay in your browser
-- The Content-Security-Policy locks outbound network calls to `api.anthropic.com`, `api.openai.com`, and `localhost:11434` / `127.0.0.1:11434` (Ollama's default port)
+- Meeting context and reframed responses are kept in memory only and are gone when the page reloads
+- In production builds, the Content-Security-Policy locks outbound network calls to `api.anthropic.com`, `api.openai.com`, and `localhost` / `127.0.0.1` (for Ollama)
 
 ## Troubleshooting
 

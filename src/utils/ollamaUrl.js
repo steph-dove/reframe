@@ -1,4 +1,6 @@
-const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+// IPv6 loopback is deliberately excluded: the CSP has no [::1] entry, so an
+// IPv6 URL would validate here and then fail every request at the CSP layer.
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1']);
 
 export function normalizeOllamaUrl(raw) {
   const trimmed = (raw || '').trim();

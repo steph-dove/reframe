@@ -46,6 +46,14 @@ export function useSpeechRecognition({
     onErrorRef.current = onError;
   }, [onMeetingContext, onUserInput, onWakeDetected, onProcessInput, onError]);
 
+  // Clears per-utterance state so a force-stop (error, give-up) can't leave a
+  // pending silence timer or stale wake/input text behind for the next session.
+  const clearUtteranceState = useCallback(() => {
+    wakeDetectedRef.current = false;
+    userInputRef.current = '';
+    clearTimeout(silenceTimerRef.current);
+  }, []);
+
   const resetSilenceTimer = useCallback(() => {
     clearTimeout(silenceTimerRef.current);
     silenceTimerRef.current = setTimeout(() => {
@@ -116,45 +124,52 @@ export function useSpeechRecognition({
     [wakePhrase, resetSilenceTimer]
   );
 
-  const handleError = useCallback((event) => {
-    console.error('Speech error:', event.error);
-    switch (event.error) {
-      case 'not-allowed':
-      case 'service-not-allowed':
-        onErrorRef.current('Microphone access denied');
-        listeningRef.current = false;
-        consecutiveFailuresRef.current = 0;
-        return;
-      case 'audio-capture':
-        onErrorRef.current('No microphone detected or it is in use by another app');
-        listeningRef.current = false;
-        consecutiveFailuresRef.current = 0;
-        return;
-      case 'network':
-      case 'aborted':
-        consecutiveFailuresRef.current += 1;
-        if (consecutiveFailuresRef.current >= MAX_CONSECUTIVE_FAILURES) {
-          onErrorRef.current(
-            event.error === 'network'
-              ? 'Network error — speech recognition stopped'
-              : 'Speech recognition keeps aborting — stopped'
-          );
+  const handleError = useCallback(
+    (event) => {
+      console.error('Speech error:', event.error);
+      switch (event.error) {
+        case 'not-allowed':
+        case 'service-not-allowed':
+          onErrorRef.current('Microphone access denied');
           listeningRef.current = false;
+          clearUtteranceState();
           consecutiveFailuresRef.current = 0;
-        }
-        return;
-      case 'no-speech':
-        // benign; onend will restart
-        return;
-      default:
-        consecutiveFailuresRef.current += 1;
-        if (consecutiveFailuresRef.current >= MAX_CONSECUTIVE_FAILURES) {
-          onErrorRef.current(`Speech recognition error: ${event.error}`);
+          return;
+        case 'audio-capture':
+          onErrorRef.current('No microphone detected or it is in use by another app');
           listeningRef.current = false;
+          clearUtteranceState();
           consecutiveFailuresRef.current = 0;
-        }
-    }
-  }, []);
+          return;
+        case 'network':
+        case 'aborted':
+          consecutiveFailuresRef.current += 1;
+          if (consecutiveFailuresRef.current >= MAX_CONSECUTIVE_FAILURES) {
+            onErrorRef.current(
+              event.error === 'network'
+                ? 'Network error — speech recognition stopped'
+                : 'Speech recognition keeps aborting — stopped'
+            );
+            listeningRef.current = false;
+            clearUtteranceState();
+            consecutiveFailuresRef.current = 0;
+          }
+          return;
+        case 'no-speech':
+          // benign; onend will restart
+          return;
+        default:
+          consecutiveFailuresRef.current += 1;
+          if (consecutiveFailuresRef.current >= MAX_CONSECUTIVE_FAILURES) {
+            onErrorRef.current(`Speech recognition error: ${event.error}`);
+            listeningRef.current = false;
+            clearUtteranceState();
+            consecutiveFailuresRef.current = 0;
+          }
+      }
+    },
+    [clearUtteranceState]
+  );
 
   const handleEnd = useCallback(() => {
     if (!listeningRef.current) return;
@@ -162,9 +177,13 @@ export function useSpeechRecognition({
     if (silentRestartsRef.current > MAX_SILENT_RESTARTS) {
       onErrorRef.current('Microphone is quiet — speech recognition stopped');
       listeningRef.current = false;
+      clearUtteranceState();
       silentRestartsRef.current = 0;
       return;
     }
+    // A restarted session numbers its results from 0 again, so the dedupe
+    // index must not survive across sessions.
+    lastProcessedFinalIndexRef.current = -1;
     const failures = consecutiveFailuresRef.current;
     const rawDelay =
       failures === 0 ? 0 : Math.min(BACKOFF_MAX_MS, BACKOFF_BASE_MS * 2 ** (failures - 1));
@@ -181,10 +200,11 @@ export function useSpeechRecognition({
         console.error('Speech start error:', err);
         consecutiveFailuresRef.current += 1;
         listeningRef.current = false;
+        clearUtteranceState();
         onErrorRef.current(`Speech recognition stopped: ${err.message || err}`);
       }
     }, delay);
-  }, []);
+  }, [clearUtteranceState]);
 
   const stopInternal = useCallback(() => {
     listeningRef.current = false;
@@ -226,6 +246,7 @@ export function useSpeechRecognition({
     recognition.onend = handleEnd;
 
     listeningRef.current = true;
+    clearUtteranceState();
     consecutiveFailuresRef.current = 0;
     silentRestartsRef.current = 0;
     lastProcessedFinalIndexRef.current = -1;
@@ -239,7 +260,7 @@ export function useSpeechRecognition({
       }
     }
     return true;
-  }, [handleResult, handleError, handleEnd, onError]);
+  }, [handleResult, handleError, handleEnd, onError, clearUtteranceState]);
 
   const stop = useCallback(() => {
     stopInternal();

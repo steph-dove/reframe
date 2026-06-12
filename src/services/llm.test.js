@@ -129,17 +129,16 @@ describe('callLLM', () => {
     await expect(callLLM('t', '', { provider: 'bogus' })).rejects.toBeInstanceOf(LLMError);
   });
 
+  // Real fetch rejects with the abort signal's reason; the mock must match so
+  // abort/timeout classification in httpJson is exercised faithfully.
+  const neverResolvingFetch = (_url, init) =>
+    new Promise((_resolve, reject) => {
+      init.signal.addEventListener('abort', () => reject(init.signal.reason));
+    });
+
   it('passes the abort signal through to fetch and propagates abort', async () => {
     const controller = new AbortController();
-    fetch.mockImplementationOnce((_url, init) => {
-      return new Promise((_resolve, reject) => {
-        init.signal.addEventListener('abort', () => {
-          const err = new Error('aborted');
-          err.name = 'AbortError';
-          reject(err);
-        });
-      });
-    });
+    fetch.mockImplementationOnce(neverResolvingFetch);
     const promise = callLLM(
       't',
       '',
@@ -150,23 +149,20 @@ describe('callLLM', () => {
     await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
   });
 
-  it('aborts with a timeout when fetch never resolves', async () => {
+  it('maps a timeout to a friendly LLMError when fetch never resolves', async () => {
     let captured;
-    fetch.mockImplementationOnce((_url, init) => {
+    fetch.mockImplementationOnce((url, init) => {
       captured = init.signal;
-      return new Promise((_resolve, reject) => {
-        init.signal.addEventListener('abort', () => {
-          const err = new Error('timed out');
-          err.name = 'AbortError';
-          reject(err);
-        });
-      });
+      return neverResolvingFetch(url, init);
     });
     const promise = callLLM('t', '', { provider: 'anthropic', apiKey: 'k' });
     promise.catch(() => {});
     await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS + 10);
     expect(captured.aborted).toBe(true);
-    await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(promise).rejects.toMatchObject({
+      name: 'LLMError',
+      message: expect.stringContaining('timed out'),
+    });
   });
 
   it('throws an "Empty response" LLMError when content is missing', async () => {

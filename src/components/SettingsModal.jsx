@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { PROVIDERS } from '../services/llm';
-import { DEFAULT_WAKE_PHRASE } from '../utils/settings';
+import { PROVIDERS } from '../utils/providers';
+import { DEFAULT_SILENCE_TIMEOUT, DEFAULT_WAKE_PHRASE } from '../utils/settings';
 import { normalizeOllamaUrl } from '../utils/ollamaUrl';
 
 const MIN_SILENCE_TIMEOUT = 1;
@@ -36,7 +36,7 @@ export default function SettingsModal({ isOpen, onClose, onToast, settings, onSa
       wakePhrase,
       silenceTimeout: Math.min(
         MAX_SILENCE_TIMEOUT,
-        Math.max(MIN_SILENCE_TIMEOUT, Number.isFinite(parsed) ? parsed : 3)
+        Math.max(MIN_SILENCE_TIMEOUT, Number.isFinite(parsed) ? parsed : DEFAULT_SILENCE_TIMEOUT)
       ),
     };
     const saved = onSave(next);

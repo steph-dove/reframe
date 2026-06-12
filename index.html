@@ -6,10 +6,9 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://api.anthropic.com https://api.openai.com http://localhost:* http://127.0.0.1:* http://*.local:* http://192.168.*:* http://10.*:* http://172.16.*:* http://172.17.*:* http://172.18.*:* http://172.19.*:* http://172.20.*:* http://172.21.*:* http://172.22.*:* http://172.23.*:* http://172.24.*:* http://172.25.*:* http://172.26.*:* http://172.27.*:* http://172.28.*:* http://172.29.*:* http://172.30.*:* http://172.31.*:*; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; object-src 'none'"
-    />
+    <!-- The Content-Security-Policy meta tag is injected at build time by the
+         injectCsp plugin in vite.config.js; the dev server needs inline
+         scripts/styles (react-refresh, injected CSS) that the policy blocks. -->
     <title>Reframe</title>
   </head>
   <body>
