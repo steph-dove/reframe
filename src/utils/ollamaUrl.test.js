@@ -26,6 +26,15 @@ describe('normalizeOllamaUrl', () => {
     expect(result.value).toBeUndefined();
   });
 
+  it('rejects non-loopback hosts (SSRF guard)', () => {
+    expect(normalizeOllamaUrl('http://169.254.169.254')).toMatchObject({
+      error: expect.stringContaining('localhost'),
+    });
+    expect(normalizeOllamaUrl('http://192.168.1.10:11434')).toMatchObject({
+      error: expect.stringContaining('localhost'),
+    });
+  });
+
   it('rejects hosts that merely start with localhost', () => {
     const result = normalizeOllamaUrl('http://localhost.evil.com:11434');
     expect(result.error).toMatch(/localhost or 127\.0\.0\.1/);
@@ -43,15 +52,19 @@ describe('normalizeOllamaUrl', () => {
 
   it('rejects empty and invalid input', () => {
     expect(normalizeOllamaUrl('').error).toMatch(/required/);
+    expect(normalizeOllamaUrl('   ').error).toMatch(/required/);
     expect(normalizeOllamaUrl(undefined).error).toMatch(/required/);
     expect(normalizeOllamaUrl('not a url').error).toMatch(/not a valid URL/);
   });
 
-  it('strips trailing slashes', () => {
-    expect(normalizeOllamaUrl('http://localhost:11434/')).toEqual({
-      value: 'http://localhost:11434',
+  it('rejects non-root paths', () => {
+    expect(normalizeOllamaUrl('http://localhost:11434/ollama/')).toMatchObject({
+      error: expect.stringContaining('path'),
     });
-    expect(normalizeOllamaUrl('http://localhost:11434///')).toEqual({
+  });
+
+  it('strips a single trailing slash', () => {
+    expect(normalizeOllamaUrl('http://localhost:11434/')).toEqual({
       value: 'http://localhost:11434',
     });
   });

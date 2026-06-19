@@ -17,7 +17,8 @@ export function normalizeOllamaUrl(raw) {
   if (!LOOPBACK_HOSTS.has(parsed.hostname)) {
     return { error: 'Ollama URL must point to localhost or 127.0.0.1' };
   }
-  let normalized = parsed.origin + parsed.pathname.replace(/\/+$/, '');
-  if (parsed.pathname === '/' || parsed.pathname === '') normalized = parsed.origin;
-  return { value: normalized };
+  if (parsed.pathname !== '/' && parsed.pathname !== '') {
+    return { error: 'Ollama URL must not include a path' };
+  }
+  return { value: parsed.origin };
 }

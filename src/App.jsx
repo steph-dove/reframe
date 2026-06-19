@@ -9,6 +9,7 @@ import BottomBar from './components/BottomBar';
 import SettingsModal from './components/SettingsModal';
 import Toast from './components/Toast';
 import { getSettings, saveSettings } from './utils/settings';
+import { randomId } from './utils/ids';
 import { callLLM } from './services/llm';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { useConversation } from './hooks/useConversation';
@@ -29,7 +30,7 @@ export default function App() {
   const [settings, setSettings] = useState(getSettings);
 
   const showToast = useCallback((msg) => {
-    setToast({ id: Date.now() + Math.random(), message: msg });
+    setToast({ id: randomId('toast'), message: msg });
   }, []);
   const handleToastDone = useCallback(() => setToast(null), []);
 

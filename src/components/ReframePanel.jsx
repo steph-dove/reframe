@@ -1,6 +1,7 @@
+import { memo } from 'react';
 import './ReframePanel.css';
 
-export default function ReframePanel({ original, say, why, time }) {
+function ReframePanel({ original, say, why, time }) {
   return (
     <div className="panel reframe-panel">
       <div className="panel-header">
@@ -15,3 +16,5 @@ export default function ReframePanel({ original, say, why, time }) {
     </div>
   );
 }
+
+export default memo(ReframePanel);

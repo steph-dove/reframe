@@ -1,3 +1,7 @@
+// Provider catalog shared by the LLM transport (services/llm.js) and the
+// settings layer (utils/settings.js, components/SettingsModal.jsx). Kept
+// separate so neither side has to import the other just to read provider
+// metadata or default models.
 export const PROVIDERS = {
   anthropic: {
     label: 'Anthropic (Claude)',

@@ -7,7 +7,13 @@ const MAX_CONSECUTIVE_FAILURES = 5;
 const BACKOFF_BASE_MS = 250;
 const BACKOFF_MAX_MS = 4000;
 const RESTART_FLOOR_MS = 50;
+// A broken recognizer spins in a tight start→end loop; a quiet room produces
+// restarts seconds apart (Chrome keeps a silent session open for several
+// seconds before ending it). We only give up when restarts arrive faster than
+// SILENT_RESTART_WINDOW_MS apart for MAX_SILENT_RESTARTS in a row, so a
+// legitimately quiet meeting is never mistaken for a broken mic.
 const MAX_SILENT_RESTARTS = 8;
+const SILENT_RESTART_WINDOW_MS = 2000;
 
 function isAlreadyStartedError(err) {
   const msg = err && err.message ? err.message : String(err || '');
@@ -31,6 +37,7 @@ export function useSpeechRecognition({
   const consecutiveFailuresRef = useRef(0);
   const restartTimerRef = useRef(null);
   const silentRestartsRef = useRef(0);
+  const lastRestartAtRef = useRef(0);
   const lastProcessedFinalIndexRef = useRef(-1);
 
   const onMeetingContextRef = useRef(onMeetingContext);
@@ -113,7 +120,8 @@ export function useSpeechRecognition({
                 userInputRef.current += (userInputRef.current ? ' ' : '') + relevantTranscript;
               }
               onUserInputRef.current(
-                userInputRef.current + (isFinal ? '' : ' ' + relevantTranscript)
+                userInputRef.current +
+                  (isFinal ? '' : (userInputRef.current ? ' ' : '') + relevantTranscript)
               );
               resetSilenceTimer();
             }
@@ -173,9 +181,17 @@ export function useSpeechRecognition({
 
   const handleEnd = useCallback(() => {
     if (!listeningRef.current) return;
+    // Only count restarts that arrive in rapid succession (a tight spin loop).
+    // A quiet room ends sessions seconds apart, which resets the streak so it
+    // never trips the give-up threshold.
+    const now = Date.now();
+    if (now - lastRestartAtRef.current > SILENT_RESTART_WINDOW_MS) {
+      silentRestartsRef.current = 0;
+    }
+    lastRestartAtRef.current = now;
     silentRestartsRef.current += 1;
     if (silentRestartsRef.current > MAX_SILENT_RESTARTS) {
-      onErrorRef.current('Microphone is quiet — speech recognition stopped');
+      onErrorRef.current('Speech recognition keeps restarting — stopped');
       listeningRef.current = false;
       clearUtteranceState();
       silentRestartsRef.current = 0;
@@ -193,6 +209,9 @@ export function useSpeechRecognition({
       if (!listeningRef.current) return;
       try {
         if (recognitionRef.current) {
+          // Each Web Speech session emits a fresh results list indexed from 0,
+          // so reset the dedup high-water mark before the restarted session.
+          lastProcessedFinalIndexRef.current = -1;
           recognitionRef.current.start();
         }
       } catch (err) {
