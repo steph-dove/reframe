@@ -13,11 +13,19 @@ A real-time communication coach that helps you express your thoughts more diplom
 
 ## Quick Start
 
-1. Open `reframe.html` in a modern browser (Chrome, Edge, or Safari recommended)
-2. Click the gear icon to open settings
-3. Choose your AI provider and configure it (see below)
-4. Click the microphone button and allow microphone access
-5. Start talking
+Requirements: Node.js 20.19+ and npm (required by Vite 8).
+
+```bash
+npm install
+npm run dev
+```
+
+Then open the URL Vite prints (typically `http://localhost:5173`). Use Chrome, Edge, or Safari for Web Speech API support.
+
+1. Click the gear icon to open settings
+2. Choose your AI provider and configure it (see below)
+3. Click the microphone button and allow microphone access
+4. Start talking
 
 ## AI Provider Setup
 
@@ -70,19 +78,20 @@ Run AI models locally without an API key.
 - **Client-facing** - Extra polished and warm
 - **Direct** - Honest but kind
 
-## Running Over HTTPS
+## Conversation History
 
-The Web Speech API works best over HTTPS. SSL certificates are included for local development:
+Reframes live in memory for the current page session only — reloading the page clears them.
+
+## Production Build
 
 ```bash
-# Using Python
-python3 -m http.server 8443 --bind 127.0.0.1
-
-# Using Node.js (with a simple HTTPS server)
-npx http-server -S -C cert.pem -K key.pem -p 8443
+npm run build
+npm run preview
 ```
 
-Then open `https://localhost:8443/reframe.html`
+The Web Speech API requires HTTPS (or `localhost`). For non-local hosting, serve the built `dist/` over HTTPS.
+
+The built page's Content-Security-Policy is delivered via a meta tag, which browsers ignore for `frame-ancestors`. To get clickjacking protection, whatever serves `dist/` must send it as an HTTP header (e.g. `Content-Security-Policy: frame-ancestors 'none'` or `X-Frame-Options: DENY`).
 
 ## Browser Requirements
 
@@ -92,16 +101,17 @@ Then open `https://localhost:8443/reframe.html`
 
 ## Privacy
 
-- API keys are stored locally in your browser's localStorage
-- No data is sent to any server except your chosen AI provider
-- Meeting context and reframed responses stay in your browser
+- API keys are stored locally in your browser's localStorage and sent directly to your chosen provider when reframing
+- Anyone with access to this device can read those keys
+- Meeting context and reframed responses are kept in memory only and are gone when the page reloads
+- In production builds, the Content-Security-Policy locks outbound network calls to `api.anthropic.com`, `api.openai.com`, and `localhost` / `127.0.0.1` (for Ollama)
 
 ## Troubleshooting
 
 **Microphone not working?**
 
 - Ensure you've granted microphone permission to the page
-- Try using HTTPS instead of HTTP
+- Try using HTTPS instead of HTTP (or `localhost`)
 - Check that no other app is using the microphone
 
 **API errors?**

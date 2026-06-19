@@ -6,10 +6,6 @@
   animation: reframe-in 0.4s ease-out;
 }
 
-.reframe-panel.no-animate {
-  animation: none;
-}
-
 .reframe-panel .panel-header {
   color: var(--accent);
   border-bottom-color: var(--accent-dim);
@@ -21,6 +17,15 @@
   font-size: 15px;
   line-height: 1.8;
   max-height: none;
+}
+
+.reframe-panel .reframe-time {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.reframe-say {
+  white-space: pre-wrap;
 }
 
 .original-thought {

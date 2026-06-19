@@ -10,6 +10,5 @@ dist/
 # Vite
 *.local
 
-# Sibling experiment directories
-reframe-reframe-again/
-reframe-reframe-again-again/
+# Per-machine Claude permission overrides; not meant to be shared
+.claude/settings.local.json

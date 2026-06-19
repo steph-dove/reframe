@@ -6,11 +6,10 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
+    <!-- The Content-Security-Policy meta tag is injected at build time by the
+         injectCsp plugin in vite.config.js; the dev server needs inline
+         scripts/styles (react-refresh, injected CSS) that the policy blocks. -->
     <title>Reframe</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap"
-      rel="stylesheet"
-    />
   </head>
   <body>
     <div id="root"></div>

@@ -1,14 +1,23 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import './Toast.css';
 
-export default function Toast({ message, onDone }) {
+const TOAST_DURATION_MS = 4000;
+
+export default function Toast({ toast, onDone }) {
+  const onDoneRef = useRef(onDone);
   useEffect(() => {
-    if (!message) return;
-    const timer = setTimeout(() => onDone(), 3000);
+    onDoneRef.current = onDone;
+  }, [onDone]);
+
+  const toastId = toast ? toast.id : null;
+
+  useEffect(() => {
+    if (toastId === null) return;
+    const timer = setTimeout(() => onDoneRef.current(), TOAST_DURATION_MS);
     return () => clearTimeout(timer);
-  }, [message, onDone]);
+  }, [toastId]);
 
-  if (!message) return null;
+  if (!toast) return null;
 
-  return <div className="toast">{message}</div>;
+  return <div className="toast">{toast.message}</div>;
 }

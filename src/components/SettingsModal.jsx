@@ -1,40 +1,54 @@
 import { useState, useEffect } from 'react';
-import { getSettings, saveSettings as persistSettings } from '../utils/settings';
+import { PROVIDERS } from '../utils/providers';
+import { DEFAULT_SILENCE_TIMEOUT, DEFAULT_WAKE_PHRASE } from '../utils/settings';
+import { normalizeOllamaUrl } from '../utils/ollamaUrl';
 
-export default function SettingsModal({ isOpen, onClose, onToast }) {
-  const [form, setForm] = useState(getSettings);
+const MIN_SILENCE_TIMEOUT = 1;
+const MAX_SILENCE_TIMEOUT = 10;
+
+export default function SettingsModal({ isOpen, onClose, onToast, settings, onSave }) {
+  const [form, setForm] = useState(settings);
 
   useEffect(() => {
-    if (isOpen) setForm(getSettings());
-  }, [isOpen]);
+    if (isOpen) setForm(settings);
+  }, [isOpen, settings]);
 
   const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
   const handleSave = () => {
-    persistSettings({
+    const parsed = parseInt(form.silenceTimeout, 10);
+    const wakePhrase = (form.wakePhrase || '').toLowerCase().trim() || DEFAULT_WAKE_PHRASE;
+
+    let ollamaUrl = (form.ollamaUrl || '').trim();
+    if (form.provider === 'ollama') {
+      const result = normalizeOllamaUrl(form.ollamaUrl);
+      if (result.error) {
+        onToast(result.error);
+        return;
+      }
+      ollamaUrl = result.value;
+    }
+
+    const next = {
       ...form,
-      wakePhrase: form.wakePhrase.toLowerCase().trim(),
-      silenceTimeout: parseInt(form.silenceTimeout) || 3,
-    });
+      apiKey: form.apiKey.trim(),
+      ollamaUrl,
+      wakePhrase,
+      silenceTimeout: Math.min(
+        MAX_SILENCE_TIMEOUT,
+        Math.max(MIN_SILENCE_TIMEOUT, Number.isFinite(parsed) ? parsed : DEFAULT_SILENCE_TIMEOUT)
+      ),
+    };
+    const saved = onSave(next);
+    if (saved === false) {
+      onToast('Could not save settings — storage unavailable');
+      return;
+    }
     onClose();
     onToast('Settings saved');
   };
 
-  const providerHints = {
-    anthropic: {
-      placeholder: 'sk-ant-...',
-      model: 'claude-sonnet-4-20250514',
-      hint: 'Your key stays on-device',
-    },
-    openai: { placeholder: 'sk-...', model: 'gpt-4o', hint: 'Your key stays on-device' },
-    ollama: {
-      placeholder: 'Not needed for local models',
-      model: 'llama3.2',
-      hint: 'Ollama runs locally — no API key needed',
-    },
-  };
-
-  const hints = providerHints[form.provider] || providerHints.anthropic;
+  const provider = PROVIDERS[form.provider] || PROVIDERS.anthropic;
 
   return (
     <div
@@ -48,9 +62,11 @@ export default function SettingsModal({ isOpen, onClose, onToast }) {
         <div className="field">
           <label>LLM Provider</label>
           <select value={form.provider} onChange={update('provider')}>
-            <option value="anthropic">Anthropic (Claude)</option>
-            <option value="openai">OpenAI (GPT)</option>
-            <option value="ollama">Ollama (Local)</option>
+            {Object.entries(PROVIDERS).map(([key, p]) => (
+              <option key={key} value={key}>
+                {p.label}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -60,9 +76,9 @@ export default function SettingsModal({ isOpen, onClose, onToast }) {
             type="password"
             value={form.apiKey}
             onChange={update('apiKey')}
-            placeholder={hints.placeholder}
+            placeholder={provider.keyPlaceholder}
           />
-          <div className="hint">{hints.hint}</div>
+          <div className="hint">{provider.keyHint}</div>
         </div>
 
         <div className="field">
@@ -71,7 +87,7 @@ export default function SettingsModal({ isOpen, onClose, onToast }) {
             type="text"
             value={form.model}
             onChange={update('model')}
-            placeholder={hints.model}
+            placeholder={provider.defaultModel}
           />
         </div>
 
@@ -84,6 +100,7 @@ export default function SettingsModal({ isOpen, onClose, onToast }) {
               onChange={update('ollamaUrl')}
               placeholder="http://localhost:11434"
             />
+            <div className="hint">Must point to localhost or 127.0.0.1.</div>
           </div>
         )}
 
@@ -104,8 +121,8 @@ export default function SettingsModal({ isOpen, onClose, onToast }) {
             type="number"
             value={form.silenceTimeout}
             onChange={update('silenceTimeout')}
-            min="1"
-            max="10"
+            min={MIN_SILENCE_TIMEOUT}
+            max={MAX_SILENCE_TIMEOUT}
           />
           <div className="hint">How long to wait after you stop speaking to process your input</div>
         </div>

@@ -1,40 +1,8 @@
 import './BottomBar.css';
 
-export default function BottomBar({
-  listening,
-  textInputActive,
-  onToggleListening,
-  onToggleTextInput,
-}) {
+export default function BottomBar({ listening, onToggleListening }) {
   return (
     <div className="bottom-bar">
-      <button
-        className={`keyboard-btn ${textInputActive ? 'active' : ''}`}
-        onClick={onToggleTextInput}
-        aria-label="Type instead"
-      >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <rect x="2" y="4" width="20" height="16" rx="2" ry="2" />
-          <line x1="6" y1="8" x2="6" y2="8" />
-          <line x1="10" y1="8" x2="10" y2="8" />
-          <line x1="14" y1="8" x2="14" y2="8" />
-          <line x1="18" y1="8" x2="18" y2="8" />
-          <line x1="6" y1="12" x2="6" y2="12" />
-          <line x1="10" y1="12" x2="10" y2="12" />
-          <line x1="14" y1="12" x2="14" y2="12" />
-          <line x1="18" y1="12" x2="18" y2="12" />
-          <line x1="8" y1="16" x2="16" y2="16" />
-        </svg>
-      </button>
       <button className={`listen-btn ${listening ? 'active' : ''}`} onClick={onToggleListening}>
         <svg
           viewBox="0 0 24 24"
